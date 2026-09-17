@@ -630,8 +630,10 @@ function attendancePercentage(records) {
 export default function App() {
   const [active, setActive] = useState("dashboard");
 
-  // Jadwal — TIDAK diubah mekanisme statenya, tetap sama persis seperti sebelumnya
-  const [schedule, setSchedule] = useState(DUMMY_SCHEDULE);
+  // Jadwal — struktur data dan mekanisme editing TIDAK diubah; hanya
+  // ditambahkan localStorage persistence dengan pola yang sama persis
+  // seperti fitur lain di bawah (courses, tasks, dst).
+  const [schedule, setSchedule] = useState(() => loadFromStorage("schedule", DUMMY_SCHEDULE));
   const [scheduleView, setScheduleView] = useState("today");
   const [scheduleSelectedDay, setScheduleSelectedDay] = useState(todayDayName());
 
@@ -645,7 +647,8 @@ export default function App() {
 
   const [moreOpen, setMoreOpen] = useState(false);
 
-  // Simpan ke localStorage setiap kali data berubah — hanya fitur baru
+  // Simpan ke localStorage setiap kali data berubah
+  useEffect(() => saveToStorage("schedule", schedule), [schedule]);
   useEffect(() => saveToStorage("courses", courses), [courses]);
   useEffect(() => saveToStorage("tasks", tasks), [tasks]);
   useEffect(() => saveToStorage("exams", exams), [exams]);
@@ -907,7 +910,14 @@ function Dashboard({ setActive, tasks, setTasks, exams, schedule }) {
     );
   };
 
-  // Deadline mendatang: gabungan tugas yang belum selesai + ujian, diurutkan berdasarkan tanggal terdekat
+  // Deadline mendatang: gabungan tugas yang belum selesai + ujian, diurutkan
+  // berdasarkan tanggal terdekat. PENTING: daftar ini SELALU diturunkan
+  // langsung dari state `tasks` dan `exams` yang sedang berlaku (prop dari
+  // App) — tidak pernah menyimpan salinan/cache terpisah. Karena `tasks`
+  // dan `exams` adalah objek array baru setiap kali item ditambah, diedit,
+  // ditandai selesai, atau dihapus (semua lewat setTasks/setExams di App),
+  // useMemo ini otomatis menghitung ulang dan tidak pernah menampilkan tugas
+  // yang sudah dihapus.
   const upcomingDeadlines = useMemo(() => {
     const fromTasks = tasks
       .filter((t) => t.status !== "Selesai" && t.status !== "Dikumpulkan" && t.dueDate)
