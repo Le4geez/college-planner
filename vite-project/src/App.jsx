@@ -28,6 +28,7 @@ import {
   ChevronDown,
   Check,
 } from "lucide-react";
+import { scheduleSyncToSupabase, pullPlannerDataOnce } from "./lib/plannerSync";
 
 // ---------------------------------------------------------------------------
 // Dummy data — nanti akan digantikan oleh data dari localStorage / backend
@@ -647,13 +648,50 @@ export default function App() {
 
   const [moreOpen, setMoreOpen] = useState(false);
 
-  // Simpan ke localStorage setiap kali data berubah
-  useEffect(() => saveToStorage("schedule", schedule), [schedule]);
-  useEffect(() => saveToStorage("courses", courses), [courses]);
-  useEffect(() => saveToStorage("tasks", tasks), [tasks]);
-  useEffect(() => saveToStorage("exams", exams), [exams]);
-  useEffect(() => saveToStorage("attendance", attendance), [attendance]);
-  useEffect(() => saveToStorage("notes", notes), [notes]);
+  // Simpan ke localStorage setiap kali data berubah (perilaku lama,
+  // TIDAK diubah) — dan sekaligus jadwalkan sinkronisasi ke Supabase.
+  // scheduleSyncToSupabase tidak melakukan apa-apa jika Supabase belum
+  // dikonfigurasi (lihat src/lib/plannerSync.js), jadi baris tambahan ini
+  // aman bagi siapa pun yang belum mengisi env var Supabase.
+  useEffect(() => {
+    saveToStorage("schedule", schedule);
+    scheduleSyncToSupabase("schedule", schedule);
+  }, [schedule]);
+  useEffect(() => {
+    saveToStorage("courses", courses);
+    scheduleSyncToSupabase("courses", courses);
+  }, [courses]);
+  useEffect(() => {
+    saveToStorage("tasks", tasks);
+    scheduleSyncToSupabase("tasks", tasks);
+  }, [tasks]);
+  useEffect(() => {
+    saveToStorage("exams", exams);
+    scheduleSyncToSupabase("exams", exams);
+  }, [exams]);
+  useEffect(() => {
+    saveToStorage("attendance", attendance);
+    scheduleSyncToSupabase("attendance", attendance);
+  }, [attendance]);
+  useEffect(() => {
+    saveToStorage("notes", notes);
+    scheduleSyncToSupabase("notes", notes);
+  }, [notes]);
+
+  // Sekali saat aplikasi pertama kali dibuka: coba tarik data planner dari
+  // Supabase (jika sudah dikonfigurasi) untuk perangkat/user_id ini. Jika
+  // Supabase belum dikonfigurasi atau belum ada data tersimpan di sana,
+  // fungsi ini tidak melakukan apa-apa dan aplikasi tetap memakai nilai
+  // localStorage yang sudah dimuat lewat useState di atas.
+  useEffect(() => {
+    pullPlannerDataOnce("schedule", setSchedule, saveToStorage);
+    pullPlannerDataOnce("courses", setCourses, saveToStorage);
+    pullPlannerDataOnce("tasks", setTasks, saveToStorage);
+    pullPlannerDataOnce("exams", setExams, saveToStorage);
+    pullPlannerDataOnce("attendance", setAttendance, saveToStorage);
+    pullPlannerDataOnce("notes", setNotes, saveToStorage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const courseNames = useMemo(() => courses.map((c) => c.name), [courses]);
 
